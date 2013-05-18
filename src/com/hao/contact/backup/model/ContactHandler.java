@@ -1,7 +1,6 @@
 package com.hao.contact.backup.model;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -9,19 +8,19 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
+
+import com.hao.contact.backup.model.ContactInfo.OrganizationInfo;
 
 import a_vcard.android.provider.Contacts;
 import a_vcard.android.syncml.pim.VDataBuilder;
 import a_vcard.android.syncml.pim.VNode;
 import a_vcard.android.syncml.pim.vcard.ContactStruct;
 import a_vcard.android.syncml.pim.vcard.ContactStruct.ContactMethod;
+import a_vcard.android.syncml.pim.vcard.ContactStruct.OrganizationData;
 import a_vcard.android.syncml.pim.vcard.ContactStruct.PhoneData;
 import a_vcard.android.syncml.pim.vcard.VCardComposer;
 import a_vcard.android.syncml.pim.vcard.VCardException;
@@ -33,7 +32,6 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Environment;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.CommonDataKinds.Email;
 import android.provider.ContactsContract.CommonDataKinds.Organization;
@@ -51,77 +49,11 @@ import android.util.Log;
  */
 public class ContactHandler {
 	private static String TAG = "ContactHandler";
-	public static final String[] PROJECTION_RAW_CONTACT = new String[] {
-			RawContacts._ID, RawContacts.CONTACT_ID };
-	public static final String[] PROJECTION_CONTACTS = {
-			android.provider.ContactsContract.Contacts._ID,
-			android.provider.ContactsContract.Contacts.HAS_PHONE_NUMBER,
-			android.provider.ContactsContract.Contacts.DISPLAY_NAME };
 	private static ContactHandler instance_ = new ContactHandler();
 
 	/** 获取实例 */
 	public static ContactHandler getInstance() {
 		return instance_;
-	}
-
-	public static int[] getColumnIndexs(String[] projections, Cursor c) {
-		int[] ret = new int[projections.length];
-		for (int i = 0; i < projections.length; i++) {
-			ret[i] = c.getColumnIndex(projections[i]);
-		}
-		return ret;
-	}
-
-	/**
-	 * 获取联系人指定信息
-	 * 
-	 * @param projection
-	 *            指定要获取的列数组, 获取全部列则设置为null
-	 * @return
-	 * @throws Exception
-	 */
-	public Cursor queryContact(Activity context, String[] projection) {
-		// 获取联系人的所需信息
-		Cursor cur = context.getContentResolver().query(
-				ContactsContract.Contacts.CONTENT_URI, projection, null, null,
-				null);
-		return cur;
-	}
-
-	private static HashMap<String, String> contactIdAndRawContactIds;
-
-	public static HashMap<String, String> _getContactIdByRawContactId(
-			ContentResolver cr) {
-		if (contactIdAndRawContactIds == null) {
-			contactIdAndRawContactIds = new HashMap<String, String>();
-			contactIdAndRawContactIds = _initContactIdByRawContactId(cr);
-		}
-		return contactIdAndRawContactIds;
-	}
-
-	private static HashMap<String, String> _initContactIdByRawContactId(
-			ContentResolver cr) {
-		HashMap<String, String> ret = new HashMap<String, String>();
-		Cursor cursorRawContact = null;
-		try {
-			cursorRawContact = cr.query(RawContacts.CONTENT_URI,
-					PROJECTION_RAW_CONTACT, null, null, null);
-			int indexContactId = cursorRawContact
-					.getColumnIndex(RawContacts.CONTACT_ID);
-			int indexRawContactId = cursorRawContact
-					.getColumnIndex(RawContacts._ID);
-			while (cursorRawContact.moveToNext()) {
-				ret.put(cursorRawContact.getString(indexContactId),
-						cursorRawContact.getString(indexRawContactId));
-			}
-		} catch (Exception e) {
-			Log.e(TAG, e.toString());
-		} finally {
-			if (cursorRawContact != null) {
-				cursorRawContact.close();
-			}
-		}
-		return ret;
 	}
 
 	/**
@@ -172,87 +104,72 @@ public class ContactHandler {
 	 * @param context
 	 * @return
 	 */
-	public List<ContactInfo> getContactInfo(Activity context) {
-		List<ContactInfo> infoList = new ArrayList<ContactInfo>();
-
-		Cursor contactCursor = queryContact(context, null);
-		if (contactCursor == null) {
+	public ContactInfo getContactInfo(Activity context,
+			ContactInfo contactInfo, ContentResolver cr) {
+		String contactId = String.valueOf(contactInfo.getId());
+		Cursor c = null;
+		c = cr.query(Data.CONTENT_URI, null, Data.CONTACT_ID + "=?",
+				new String[] { contactId }, null);
+		if (c == null) {
 			return null;
 		}
-		while (contactCursor.moveToNext()) {
-			// 获取联系人id号
-			String id = contactCursor.getString(contactCursor
-					.getColumnIndex(ContactsContract.Contacts._ID));
-			// 获取联系人姓名
-			String displayName = contactCursor.getString(contactCursor
-					.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
-
-			ContactInfo info = new ContactInfo(displayName);// 初始化联系人信息
-
-			// 设置联系人电话信息
-			List<ContactInfo.PhoneInfo> phoneNumberList = getPhoneInfos(
-					contactCursor, id, context);
+		// 设置联系人电话信息
+		if (contactInfo.isHasPhoneNumber()) {
+			List<ContactInfo.PhoneInfo> phoneNumberList = getPhoneInfos(c,
+					contactId, context);
 			if (!phoneNumberList.isEmpty()) {
-				info.setPhones(phoneNumberList);
+				contactInfo.setPhones(phoneNumberList);
 			}
-			// 设置email信息
-			List<ContactInfo.EmailInfo> emailInfoList = getEmailInfo(
-					contactCursor, id, context);
-			if (!emailInfoList.isEmpty()) {
-				info.setEmail(emailInfoList);
-			}
-			// 设置地址信息
-			List<ContactInfo.PostalInfo> postalInfoList = getPostalInfo(
-					contactCursor, id, context);
-			if (!postalInfoList.isEmpty()) {
-				info.setPostal(postalInfoList);
-			}
-			// // 设置公司信息
-			// List<ContactInfo.OrganizationInfo> organizationInfoList =
-			// getOrganizationInfo(
-			// contactCursor, id, context);
-			// if (!organizationInfoList.isEmpty()) {
-			// info.setOrganization(organizationInfoList);
-			// }
-			infoList.add(info);
 		}
-		contactCursor.close();
-		return infoList;
+
+		// 设置email信息
+		List<ContactInfo.EmailInfo> emailInfoList = getEmailInfo(c, contactId,
+				context);
+		if (!emailInfoList.isEmpty()) {
+			contactInfo.setEmail(emailInfoList);
+		}
+		// 设置地址信息
+		List<ContactInfo.PostalInfo> postalInfoList = getPostalInfo(c,
+				contactId, context);
+		if (!postalInfoList.isEmpty()) {
+			contactInfo.setPostal(postalInfoList);
+		}
+		// // 设置公司信息
+		List<ContactInfo.OrganizationInfo> organizationInfoList = getOrganizationInfo(
+				c, contactId, context);
+		if (!organizationInfoList.isEmpty()) {
+			contactInfo.setOrganization(organizationInfoList);
+		}
+		c.close();
+		return contactInfo;
 	}
 
 	private List<ContactInfo.PhoneInfo> getPhoneInfos(final Cursor c,
 			String id, Context context) {
 		List<ContactInfo.PhoneInfo> phoneNumberList = new ArrayList<ContactInfo.PhoneInfo>();
-		// 查看联系人有多少电话号码, 如果没有返回0
-		int phoneCount = c.getInt(c
-				.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER));
+		Cursor phonesCursor = context.getContentResolver().query(
+				ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null,
+				ContactsContract.CommonDataKinds.Phone.CONTACT_ID + "=" + id,
+				null, null);
+		if (phonesCursor != null) {
+			while (phonesCursor.moveToNext()) {
+				// 遍历所有电话号码
+				String phoneNumber = phonesCursor
+						.getString(phonesCursor
+								.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
+				// 对应的联系人类型
+				int type = phonesCursor
+						.getInt(phonesCursor
+								.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE));
 
-		if (phoneCount > 0) {
-			Cursor phonesCursor = context.getContentResolver().query(
-					ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-					null,
-					ContactsContract.CommonDataKinds.Phone.CONTACT_ID + "="
-							+ id, null, null);
-			if (phonesCursor != null) {
-				while (phonesCursor.moveToNext()) {
-					// 遍历所有电话号码
-					String phoneNumber = phonesCursor
-							.getString(phonesCursor
-									.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
-					// 对应的联系人类型
-					int type = phonesCursor
-							.getInt(phonesCursor
-									.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE));
+				// 初始化联系人电话信息
+				ContactInfo.PhoneInfo phoneInfo = new ContactInfo.PhoneInfo();
+				phoneInfo.type = type;
+				phoneInfo.number = phoneNumber;
 
-					// 初始化联系人电话信息
-					ContactInfo.PhoneInfo phoneInfo = new ContactInfo.PhoneInfo();
-					phoneInfo.type = type;
-					phoneInfo.number = phoneNumber;
-
-					phoneNumberList.add(phoneInfo);
-				}
-
+				phoneNumberList.add(phoneInfo);
 			}
+
 			phonesCursor.close();
 		}
 		return phoneNumberList;
@@ -388,33 +305,36 @@ public class ContactHandler {
 				List<ContactInfo.EmailInfo> emailList = info.getEmail();
 				for (ContactInfo.EmailInfo emailInfo : emailList) {
 					contact.addContactmethod(Contacts.KIND_EMAIL,
-							emailInfo.type, emailInfo.email, null, true);
+							emailInfo.type, emailInfo.email, null, false);
 				}
 				// 获取地址信息, 添加至 ContactStruct
 				List<ContactInfo.PostalInfo> postalList = info.getPostal();
 				for (ContactInfo.PostalInfo postal : postalList) {
 					contact.addContactmethod(Contacts.KIND_POSTAL, postal.type,
-							postal.address, null, true);
+							postal.address, null, false);
 				}
-				// // 获取公司信息, 添加至 ContactStruct
-				// List<ContactInfo.OrganizationInfo> organizationList = info
-				// .getOrganization();
-				// for (ContactInfo.OrganizationInfo organization :
-				// organizationList) {
-				// Log.i(TAG, organization.type + ","
-				// + organization.companyName + ","
-				// + organization.jobDescription);
-				// contact.addOrganization(organization.type,
-				// organization.companyName,
-				// null, false);
-				// }
 
-				String vcardString = composer.createVCard(contact,
-						VCardComposer.VERSION_VCARD30_INT);
-				writer.write(vcardString);
-				writer.write("\n");
-				Log.i(TAG, "vcardString=" + vcardString);
-				writer.flush();
+				// 获取公司信息, 添加至 ContactStruct
+				List<ContactInfo.OrganizationInfo> organizationList = info
+						.getOrganization();
+				for (ContactInfo.PostalInfo postal : postalList) {
+					contact.addContactmethod(Contacts.KIND_POSTAL, postal.type,
+							postal.address, null, false);
+
+					for (ContactInfo.OrganizationInfo organization : organizationList) {
+						Log.i(TAG, organization.type + ","
+								+ organization.companyName + ","
+								+ organization.jobDescription);
+						contact.company = organization.companyName;
+					}
+
+					String vcardString = composer.createVCard(contact,
+							VCardComposer.VERSION_VCARD30_INT);
+					writer.write(vcardString);
+					writer.write("\n");
+					Log.i(TAG, "vcardString=" + vcardString);
+					writer.flush();
+				}
 			}
 			writer.close();
 
@@ -431,8 +351,6 @@ public class ContactHandler {
 			e.printStackTrace();
 			Log.i(TAG, "IOException=" + e.toString());
 		}
-
-		// Toast.makeText(context, "备份成功！", Toast.LENGTH_SHORT).show();
 	}
 
 	/**
@@ -469,32 +387,47 @@ public class ContactHandler {
 			ContactStruct contactStruct = ContactStruct
 					.constructContactFromVNode(contact, 1);
 			// 获取备份文件中的联系人电话信息
-			List<PhoneData> phoneDataList = contactStruct.phoneList;
+			List<PhoneData> vcfPhoneDataList = contactStruct.phoneList;
 			List<ContactInfo.PhoneInfo> phoneInfoList = new ArrayList<ContactInfo.PhoneInfo>();
-			for (PhoneData phoneData : phoneDataList) {
+			for (PhoneData phoneData : vcfPhoneDataList) {
 				ContactInfo.PhoneInfo phoneInfo = new ContactInfo.PhoneInfo();
 				phoneInfo.number = phoneData.data;
 				phoneInfo.type = phoneData.type;
 				phoneInfoList.add(phoneInfo);
 			}
 
-			// 获取备份文件中的联系人邮箱信息
-			List<ContactMethod> emailList = contactStruct.contactmethodList;
+			// 获取备份文件中的联系人邮箱信息和地址
+			List<ContactMethod> vcfContactmethodList = contactStruct.contactmethodList;
 			List<ContactInfo.EmailInfo> emailInfoList = new ArrayList<ContactInfo.EmailInfo>();
-			// 存在 Email 信息
-			if (null != emailList) {
-				for (ContactMethod contactMethod : emailList) {
+			List<ContactInfo.PostalInfo> postalInfoList = new ArrayList<ContactInfo.PostalInfo>();
+
+			if (null != vcfContactmethodList) {
+				// 存在 Email 信息
+				for (ContactMethod contactMethod : vcfContactmethodList) {
 					if (Contacts.KIND_EMAIL == contactMethod.kind) {
 						ContactInfo.EmailInfo emailInfo = new ContactInfo.EmailInfo();
 						emailInfo.email = contactMethod.data;
 						emailInfo.type = contactMethod.type;
 						emailInfoList.add(emailInfo);
 					}
+					if (Contacts.KIND_POSTAL == contactMethod.kind) {
+						ContactInfo.PostalInfo postalInfo = new ContactInfo.PostalInfo();
+						postalInfo.address = contactMethod.data;
+						postalInfo.type = contactMethod.type;
+						postalInfoList.add(postalInfo);
+					}
 				}
 			}
+			// 获取备份文件中的联系人电话信息
+			List<ContactInfo.OrganizationInfo> organizationInfoList = new ArrayList<ContactInfo.OrganizationInfo>();
+			OrganizationInfo organizationInfo = new ContactInfo.OrganizationInfo();
+			organizationInfo.companyName = contactStruct.company;
+			organizationInfoList.add(organizationInfo);
 			ContactInfo info = new ContactInfo(contactStruct.name);
 			info.setEmail(emailInfoList);
 			info.setPhones(phoneInfoList);
+			info.setPostal(postalInfoList);
+			info.setOrganization(organizationInfoList);
 			contactInfoList.add(info);
 		}
 

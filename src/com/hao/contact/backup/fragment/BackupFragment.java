@@ -18,16 +18,16 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import com.hao.contact.backup.R;
 import com.hao.contact.backup.WflAdapter;
 import com.hao.contact.backup.model.ContactHandler;
 import com.hao.contact.backup.model.ContactInfo;
+
 /**
  * 
- * 备份：
- * 1.先最快获得contact_id和displayName表，用于显示
- * 2.动态获得phone信息，动态刷新到list中。
+ * 备份： 1.先最快获得contact_id和displayName表，用于显示 2.动态获得phone信息，动态刷新到list中。
  * 3.根据用户选择的contact_id表，分别读取所有信息，备份
  * 
  * 
@@ -38,20 +38,25 @@ import com.hao.contact.backup.model.ContactInfo;
 public class BackupFragment extends Fragment {
 	List<ContactInfo> allConatcts = null;
 	private ContactHandler mContactHandler;
-	protected ProgressDialog m_pDialog;
+	protected ProgressDialog mProgressDialog;// 正在备份进度条
 	private final static int SHOW_PROGRESS_DIALOG = 0;
 	private final static int DISMISS_PROGRESS_DIALOG = 1;
+	private final static int REFRESH_PROGRESS_DIALOG = 2;
 	private Handler mHandler = new Handler() {
 
 		@Override
 		public void handleMessage(Message msg) {
 			switch (msg.what) {
 			case SHOW_PROGRESS_DIALOG:
-				//showProgressDialog();
+				showProgressDialog("提示", "正在备份中...");
 				break;
 			case DISMISS_PROGRESS_DIALOG:
-				m_pDialog.dismiss();
+				mProgressDialog.dismiss();
+				Toast.makeText(getActivity(), "备份完成", Toast.LENGTH_LONG).show();
 				break;
+			case REFRESH_PROGRESS_DIALOG:
+				mProgressDialog.setProgress(msg.arg1);
+				mProgressDialog.setMessage("正在备份:" + msg.obj);
 			default:
 				break;
 			}
@@ -64,14 +69,10 @@ public class BackupFragment extends Fragment {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		Log.i("wu0wu", "onCreate");
-		cr=getActivity().getContentResolver();
-		//showProgressDialog();
+		cr = getActivity().getContentResolver();
 		// 获取联系人处理实例
 		mContactHandler = ContactHandler.getInstance();
-		long starttime=System.currentTimeMillis();
-		allConatcts = mContactHandler.getAllDisplayName(getActivity(),cr);
-		long endtime=System.currentTimeMillis();
-		Log.i("wu0wu","usetime="+(endtime-starttime));
+		allConatcts = mContactHandler.getAllDisplayName(getActivity(), cr);
 	}
 
 	@Override
@@ -80,21 +81,21 @@ public class BackupFragment extends Fragment {
 		refreshAdapter();
 	}
 
-	protected void showProgressDialog(String title,String message) {
+	protected void showProgressDialog(String title, String message) {
 		// 创建ProgressDialog对象
-		m_pDialog = new ProgressDialog(getActivity());
+		mProgressDialog = new ProgressDialog(getActivity());
 		// 设置进度条风格，风格为圆形，旋转的
-		m_pDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+		mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
 		// 设置ProgressDialog 标题
-		m_pDialog.setTitle(title);
+		mProgressDialog.setTitle(title);
 		// 设置ProgressDialog 提示信息
-		m_pDialog.setMessage(message);
+		mProgressDialog.setMessage(message);
 		// 设置ProgressDialog 的进度条是否不明确
-		m_pDialog.setIndeterminate(false);
+		mProgressDialog.setIndeterminate(false);
 		// 设置ProgressDialog 是否可以按退回按键取消
-		m_pDialog.setCancelable(true);
+		mProgressDialog.setCancelable(false);
 		// 让ProgressDialog显示
-		m_pDialog.show();
+		mProgressDialog.show();
 	}
 
 	@Override
@@ -106,44 +107,52 @@ public class BackupFragment extends Fragment {
 
 			@Override
 			public void onClick(View v) {
-				mHandler.sendEmptyMessage(SHOW_PROGRESS_DIALOG);
 				backupContacts();
-				// m_pDialog.dismiss();
-				Message msg = new Message();
-				msg.what = DISMISS_PROGRESS_DIALOG;
-				mHandler.sendMessageDelayed(msg, 2000);
 			}
 		});
 		listView = (ListView) v.findViewById(R.id.backup_list);
-		final WflAdapter adapter = new WflAdapter(getActivity(), allConatcts);
-		listView.setAdapter(adapter);
-		listView.setOnItemClickListener(new OnItemClickListener() {
-
-			@Override
-			public void onItemClick(AdapterView<?> arg0, View arg1, int arg2,
-					long arg3) {
-				allConatcts.get(arg2).isSelected = !allConatcts.get(arg2).isSelected;
-				adapter.notifyDataSetChanged();
-			}
-		});
+		refreshAdapter();
 		return v;
 	}
 
 	private void refreshAdapter() {
-		final WflAdapter adapter = new WflAdapter(getActivity(),
-				allConatcts);
+		final WflAdapter adapter = new WflAdapter(getActivity(), allConatcts);
 		listView.setAdapter(adapter);
 	}
 
 	private void backupContacts() {
-		List<ContactInfo> selectedContact = new ArrayList<ContactInfo>();
-		for (int i = 0; i < allConatcts.size(); i++) {
-			if (allConatcts.get(i).isSelected) {
-				Log.i("wu0wu", allConatcts.get(i).getName());
-				selectedContact.add(allConatcts.get(i));
+		new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+				mHandler.sendEmptyMessage(SHOW_PROGRESS_DIALOG);
+				List<ContactInfo> selectedContact = new ArrayList<ContactInfo>();
+				int count = 0;
+				int allSise = allConatcts.size();
+				for (int i = 0; i < allSise; i++) {
+					if (allConatcts.get(i).isSelected) {
+						Log.i("wu0wu", allConatcts.get(i).getName());
+						Message msg = new Message();
+						msg.arg1 = count * 100 / allSise;
+						msg.what = REFRESH_PROGRESS_DIALOG;
+						msg.obj = allConatcts.get(i).getName();
+						mHandler.sendMessage(msg);
+						selectedContact.add(refreshContactInfo(allConatcts
+								.get(i)));
+						count++;
+					}
+				}
+				mContactHandler.backupContacts(getActivity(), selectedContact);
+				Message msg = new Message();
+				msg.what = DISMISS_PROGRESS_DIALOG;
+				mHandler.sendMessage(msg);
 			}
-		}
-		mContactHandler.backupContacts(getActivity(), selectedContact);
+		}).start();
+
+	}
+
+	private ContactInfo refreshContactInfo(ContactInfo contact) {
+		return mContactHandler.getContactInfo(getActivity(), contact, cr);
 	}
 
 	@Override
