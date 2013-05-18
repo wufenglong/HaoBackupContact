@@ -14,6 +14,7 @@ import java.util.Date;
 import java.util.List;
 
 import com.hao.contact.backup.model.ContactInfo.OrganizationInfo;
+import com.hao.contact.backup.model.ContactInfo.PhoneInfo;
 
 import a_vcard.android.provider.Contacts;
 import a_vcard.android.syncml.pim.VDataBuilder;
@@ -36,8 +37,10 @@ import android.provider.ContactsContract.CommonDataKinds.Email;
 import android.provider.ContactsContract.CommonDataKinds.Organization;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
 import android.provider.ContactsContract.CommonDataKinds.StructuredName;
+import android.provider.ContactsContract.CommonDataKinds.StructuredPostal;
 import android.provider.ContactsContract.Data;
 import android.provider.ContactsContract.RawContacts;
+import android.text.TextUtils;
 import android.util.Log;
 
 /**
@@ -160,12 +163,16 @@ public class ContactHandler {
 				int type = phonesCursor
 						.getInt(phonesCursor
 								.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE));
-
+				String label = phonesCursor
+						.getString(phonesCursor
+								.getColumnIndex(ContactsContract.CommonDataKinds.Phone.LABEL));
 				// 初始化联系人电话信息
 				ContactInfo.PhoneInfo phoneInfo = new ContactInfo.PhoneInfo();
 				phoneInfo.type = type;
 				phoneInfo.number = phoneNumber;
-
+				phoneInfo.label=label;
+				Log.i("wu0wu", "type="+type);
+				Log.i("wu0wu", "number="+phoneNumber);
 				phoneNumberList.add(phoneInfo);
 			}
 
@@ -294,46 +301,36 @@ public class ContactHandler {
 			for (ContactInfo info : infos) {
 				ContactStruct contact = new ContactStruct();
 				contact.name = info.getName();
-				// 获取联系人电话信息, 添加至 ContactStruct
 				List<ContactInfo.PhoneInfo> numberList = info.getPhones();
 				for (ContactInfo.PhoneInfo phoneInfo : numberList) {
-					contact.addPhone(phoneInfo.type, phoneInfo.number, null,
+					contact.addPhone(phoneInfo.type, phoneInfo.number, phoneInfo.label,
 							true);
 				}
-				// 获取联系人Email信息, 添加至 ContactStruct
 				List<ContactInfo.EmailInfo> emailList = info.getEmail();
 				for (ContactInfo.EmailInfo emailInfo : emailList) {
 					contact.addContactmethod(Contacts.KIND_EMAIL,
-							emailInfo.type, emailInfo.email, null, false);
+							emailInfo.type, emailInfo.email, null, true);
 				}
-				// 获取地址信息, 添加至 ContactStruct
 				List<ContactInfo.PostalInfo> postalList = info.getPostal();
 				for (ContactInfo.PostalInfo postal : postalList) {
 					contact.addContactmethod(Contacts.KIND_POSTAL, postal.type,
-							postal.address, null, false);
+							postal.address, null, true);
 				}
-
-				// 获取公司信息, 添加至 ContactStruct
 				List<ContactInfo.OrganizationInfo> organizationList = info
 						.getOrganization();
-				for (ContactInfo.PostalInfo postal : postalList) {
-					contact.addContactmethod(Contacts.KIND_POSTAL, postal.type,
-							postal.address, null, false);
-
-					for (ContactInfo.OrganizationInfo organization : organizationList) {
-						Log.i(TAG, organization.type + ","
-								+ organization.companyName + ","
-								+ organization.jobDescription);
-						contact.company = organization.companyName;
-					}
-
-					String vcardString = composer.createVCard(contact,
-							VCardComposer.VERSION_VCARD30_INT);
-					writer.write(vcardString);
-					writer.write("\n");
-					Log.i(TAG, "vcardString=" + vcardString);
-					writer.flush();
+				for (ContactInfo.OrganizationInfo organization : organizationList) {
+					Log.i(TAG, organization.type + ","
+							+ organization.companyName + ","
+							+ organization.jobDescription);
+					contact.company=organization.companyName;
 				}
+
+				String vcardString = composer.createVCard(contact,
+						VCardComposer.VERSION_VCARD21_INT);
+				writer.write(vcardString);
+				writer.write("\n");
+				Log.i(TAG, "vcardString=" + vcardString);
+				writer.flush();
 			}
 			writer.close();
 
@@ -350,6 +347,7 @@ public class ContactHandler {
 			e.printStackTrace();
 			Log.i(TAG, "IOException=" + e.toString());
 		}
+
 	}
 
 	/**
@@ -417,16 +415,32 @@ public class ContactHandler {
 					}
 				}
 			}
-			// 获取备份文件中的联系人电话信息
+
 			List<ContactInfo.OrganizationInfo> organizationInfoList = new ArrayList<ContactInfo.OrganizationInfo>();
-			OrganizationInfo organizationInfo = new ContactInfo.OrganizationInfo();
-			organizationInfo.companyName = contactStruct.company;
-			organizationInfoList.add(organizationInfo);
+			Log.i("wu0wu", "restore contactStruct.company="
+					+ contactStruct.company);
+			// 获取备份文件中的联系人电话信息
+			if (!TextUtils.isEmpty(contactStruct.company)) {
+
+				OrganizationInfo organizationInfo = new ContactInfo.OrganizationInfo();
+				organizationInfo.companyName = contactStruct.company;
+				organizationInfoList.add(organizationInfo);
+
+			}
 			ContactInfo info = new ContactInfo(contactStruct.name);
-			info.setEmail(emailInfoList);
-			info.setPhones(phoneInfoList);
-			info.setPostal(postalInfoList);
-			info.setOrganization(organizationInfoList);
+			if (emailInfoList.size() != 0) {
+				info.setEmail(emailInfoList);
+			}
+			if (phoneInfoList.size() != 0) {
+				info.setPhones(phoneInfoList);
+			}
+			if (postalInfoList.size() != 0) {
+				info.setPostal(postalInfoList);
+			}
+			if (organizationInfoList.size() != 0) {
+				info.setOrganization(organizationInfoList);
+			}
+
 			contactInfoList.add(info);
 		}
 
@@ -440,6 +454,7 @@ public class ContactHandler {
 	 *            要录入的联系人信息
 	 */
 	public void addContacts(Activity context, ContactInfo info) {
+		ContentResolver cr = context.getContentResolver();
 		ContentValues values = new ContentValues();
 		// 首先向RawContacts.CONTENT_URI执行一个空值插入，目的是获取系统返回的rawContactId
 		Uri rawContactUri = context.getContentResolver().insert(
@@ -487,6 +502,27 @@ public class ContactHandler {
 			// 往data表入Email数据
 			context.getContentResolver().insert(
 					android.provider.ContactsContract.Data.CONTENT_URI, values);
+		}
+
+		for (ContactInfo.PostalInfo postal : info.getPostal()) {
+			values.clear();
+			values.put(Data.RAW_CONTACT_ID, rawContactId);
+			values.put(Data.MIMETYPE, StructuredPostal.CONTENT_ITEM_TYPE);
+			values.put(StructuredPostal.DATA1, postal.address);
+			values.put(StructuredPostal.TYPE, postal.type);
+			Log.i("wu0wu", "insert postal " + postal.address + ","
+					+ postal.type);
+			Uri dataUri = cr.insert(Data.CONTENT_URI, values);
+		}
+		for (ContactInfo.OrganizationInfo organization : info.getOrganization()) {
+			values.clear();
+			values.put(Data.RAW_CONTACT_ID, rawContactId);
+			values.put(Data.MIMETYPE, Organization.CONTENT_ITEM_TYPE);
+			values.put(Organization.COMPANY, organization.companyName);
+			Log.i("wu0wu", "insert organization.companyName "
+					+ organization.companyName);
+			values.put(Organization.TYPE, organization.type);
+			Uri dataUri = cr.insert(Data.CONTENT_URI, values);
 		}
 
 	}

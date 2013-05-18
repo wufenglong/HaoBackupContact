@@ -10,7 +10,7 @@ import java.util.List;
  * 
  */
 public class ContactInfo {
-	public boolean isSelected = false;
+	public boolean isSelected = true;
 	private int _id=0;
 	private boolean hasPhoneNumber=false;
 	/** MUST exist */
@@ -22,6 +22,7 @@ public class ContactInfo {
 		public int type;
 		/** 联系电话 */
 		public String number;
+		public String label;
 	}
 
 	/** 联系人邮箱信息 */

@@ -27,7 +27,8 @@ import android.widget.TextView;
  * 2.恢复，先显示所有vcard文件，用户选其一，显示所有，用户选择恢复
  * 
  * 
- * 
+ * @since
+ * 	2013-05-18 恢复公司无效
  * */
 public class MainActivity extends FragmentActivity {
 	private ViewPager mPager;// 页卡内容
