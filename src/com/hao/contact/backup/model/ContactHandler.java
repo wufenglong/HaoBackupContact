@@ -13,6 +13,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
@@ -26,6 +27,7 @@ import a_vcard.android.syncml.pim.vcard.VCardComposer;
 import a_vcard.android.syncml.pim.vcard.VCardException;
 import a_vcard.android.syncml.pim.vcard.VCardParser;
 import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
@@ -49,11 +51,25 @@ import android.util.Log;
  */
 public class ContactHandler {
 	private static String TAG = "ContactHandler";
+	public static final String[] PROJECTION_RAW_CONTACT = new String[] {
+			RawContacts._ID, RawContacts.CONTACT_ID };
+	public static final String[] PROJECTION_CONTACTS = {
+			android.provider.ContactsContract.Contacts._ID,
+			android.provider.ContactsContract.Contacts.HAS_PHONE_NUMBER,
+			android.provider.ContactsContract.Contacts.DISPLAY_NAME };
 	private static ContactHandler instance_ = new ContactHandler();
 
 	/** 获取实例 */
 	public static ContactHandler getInstance() {
 		return instance_;
+	}
+
+	public static int[] getColumnIndexs(String[] projections, Cursor c) {
+		int[] ret = new int[projections.length];
+		for (int i = 0; i < projections.length; i++) {
+			ret[i] = c.getColumnIndex(projections[i]);
+		}
+		return ret;
 	}
 
 	/**
@@ -70,6 +86,84 @@ public class ContactHandler {
 				ContactsContract.Contacts.CONTENT_URI, projection, null, null,
 				null);
 		return cur;
+	}
+
+	private static HashMap<String, String> contactIdAndRawContactIds;
+
+	public static HashMap<String, String> _getContactIdByRawContactId(
+			ContentResolver cr) {
+		if (contactIdAndRawContactIds == null) {
+			contactIdAndRawContactIds = new HashMap<String, String>();
+			contactIdAndRawContactIds = _initContactIdByRawContactId(cr);
+		}
+		return contactIdAndRawContactIds;
+	}
+
+	private static HashMap<String, String> _initContactIdByRawContactId(
+			ContentResolver cr) {
+		HashMap<String, String> ret = new HashMap<String, String>();
+		Cursor cursorRawContact = null;
+		try {
+			cursorRawContact = cr.query(RawContacts.CONTENT_URI,
+					PROJECTION_RAW_CONTACT, null, null, null);
+			int indexContactId = cursorRawContact
+					.getColumnIndex(RawContacts.CONTACT_ID);
+			int indexRawContactId = cursorRawContact
+					.getColumnIndex(RawContacts._ID);
+			while (cursorRawContact.moveToNext()) {
+				ret.put(cursorRawContact.getString(indexContactId),
+						cursorRawContact.getString(indexRawContactId));
+			}
+		} catch (Exception e) {
+			Log.e(TAG, e.toString());
+		} finally {
+			if (cursorRawContact != null) {
+				cursorRawContact.close();
+			}
+		}
+		return ret;
+	}
+
+	/**
+	 * 获取联系人contact_id和名字，用于快速显示
+	 * 
+	 * @param context
+	 * @return
+	 */
+	public List<ContactInfo> getAllDisplayName(Activity context,
+			ContentResolver cr) {
+		List<ContactInfo> infoList = new ArrayList<ContactInfo>();
+		Cursor cursorContact = cr
+				.query(ContactsContract.Contacts.CONTENT_URI,
+						new String[] {
+								android.provider.ContactsContract.Contacts._ID,
+								android.provider.ContactsContract.Contacts.HAS_PHONE_NUMBER,
+								android.provider.ContactsContract.Contacts.DISPLAY_NAME },
+						android.provider.ContactsContract.Contacts.IN_VISIBLE_GROUP
+								+ "=1", null, null);
+		/* 把全部info信息读出来，放入mapInfos,Contacts._ID为key */
+		while (cursorContact.moveToNext()) {
+			int id = Integer
+					.valueOf(cursorContact.getString(cursorContact
+							.getColumnIndex(android.provider.ContactsContract.Contacts._ID)));
+			int flagHasPhone = Integer
+					.valueOf(cursorContact.getString(cursorContact
+							.getColumnIndex(android.provider.ContactsContract.Contacts.HAS_PHONE_NUMBER)));
+			String displayName = cursorContact
+					.getString(cursorContact
+							.getColumnIndex(android.provider.ContactsContract.Contacts.DISPLAY_NAME));
+			Log.i("wu0wu", "id=" + id + ",flagHasPhone=" + flagHasPhone
+					+ ",displayName=" + displayName);
+			ContactInfo cantact = new ContactInfo(displayName);
+			cantact.setId(id);
+			if (flagHasPhone == 1) {
+				cantact.setHasPhoneNumber(true);
+			} else {
+				cantact.setHasPhoneNumber(false);
+			}
+			infoList.add(cantact);
+		}
+		return infoList;
 	}
 
 	/**
@@ -274,7 +368,8 @@ public class ContactHandler {
 		try {
 			Log.i(TAG, "infos.size=" + infos.size());
 
-			String path = FileNameSelector.ROOT_PATH + "/" + getDateFormate() + ".vcf";
+			String path = FileNameSelector.ROOT_PATH + "/" + getDateFormate()
+					+ ".vcf";
 
 			OutputStreamWriter writer = new OutputStreamWriter(
 					new FileOutputStream(path), "UTF-8");

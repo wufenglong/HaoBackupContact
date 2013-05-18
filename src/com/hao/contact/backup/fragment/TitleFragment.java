@@ -65,10 +65,13 @@ public class TitleFragment extends ListFragment {
 
 	// 刷新
 	private void setAdapter() {
-		mVcfFiles=getVcfFiles();
-		setListAdapter(new ArrayAdapter<String>(getActivity(),
-				android.R.layout.simple_list_item_activated_1,
-				getVcfFileName(mVcfFiles)));
+		mVcfFiles = getVcfFiles();
+		String[] fileNames = getVcfFileName(mVcfFiles);
+		if (fileNames != null) {
+			setListAdapter(new ArrayAdapter<String>(getActivity(),
+					android.R.layout.simple_list_item_activated_1, fileNames));
+		}
+
 	}
 
 	@Override

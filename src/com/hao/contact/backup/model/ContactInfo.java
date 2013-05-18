@@ -11,6 +11,8 @@ import java.util.List;
  */
 public class ContactInfo {
 	public boolean isSelected = false;
+	private int _id=0;
+	private boolean hasPhoneNumber=false;
 	/** MUST exist */
 	private String name; // 姓名
 
@@ -51,7 +53,13 @@ public class ContactInfo {
 	private List<EmailInfo> email = new ArrayList<EmailInfo>(); // Email
 	private List<PostalInfo> postal = new ArrayList<PostalInfo>(); // 地址
 	private List<OrganizationInfo> organization = new ArrayList<OrganizationInfo>(); // 公司
+	public int getId() {
+		return _id;
+	}
 
+	public void setId(int _id) {
+		this._id = _id;
+	}
 	/**
 	 * 构造联系人信息
 	 * 
@@ -115,4 +123,14 @@ public class ContactInfo {
 				+ email + ",postal: " + postal + ",organization: "
 				+ organization + "}";
 	}
+
+	public boolean isHasPhoneNumber() {
+		return hasPhoneNumber;
+	}
+
+	public void setHasPhoneNumber(boolean hasPhoneNumber) {
+		this.hasPhoneNumber = hasPhoneNumber;
+	}
+
+
 }

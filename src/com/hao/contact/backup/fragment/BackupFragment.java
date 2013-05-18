@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.app.ProgressDialog;
+import android.content.ContentResolver;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -22,7 +23,18 @@ import com.hao.contact.backup.R;
 import com.hao.contact.backup.WflAdapter;
 import com.hao.contact.backup.model.ContactHandler;
 import com.hao.contact.backup.model.ContactInfo;
-
+/**
+ * 
+ * 备份：
+ * 1.先最快获得contact_id和displayName表，用于显示
+ * 2.动态获得phone信息，动态刷新到list中。
+ * 3.根据用户选择的contact_id表，分别读取所有信息，备份
+ * 
+ * 
+ * 
+ * @author wufenglong
+ * @since 2013-05-18
+ * */
 public class BackupFragment extends Fragment {
 	List<ContactInfo> allConatcts = null;
 	private ContactHandler mContactHandler;
@@ -35,7 +47,7 @@ public class BackupFragment extends Fragment {
 		public void handleMessage(Message msg) {
 			switch (msg.what) {
 			case SHOW_PROGRESS_DIALOG:
-				showProgressDialog();
+				//showProgressDialog();
 				break;
 			case DISMISS_PROGRESS_DIALOG:
 				m_pDialog.dismiss();
@@ -46,13 +58,20 @@ public class BackupFragment extends Fragment {
 		}
 	};
 	private ListView listView;
+	private ContentResolver cr;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		Log.i("wu0wu", "onCreate");
+		cr=getActivity().getContentResolver();
+		//showProgressDialog();
 		// 获取联系人处理实例
 		mContactHandler = ContactHandler.getInstance();
-		allConatcts = mContactHandler.getContactInfo(getActivity());
+		long starttime=System.currentTimeMillis();
+		allConatcts = mContactHandler.getAllDisplayName(getActivity(),cr);
+		long endtime=System.currentTimeMillis();
+		Log.i("wu0wu","usetime="+(endtime-starttime));
 	}
 
 	@Override
@@ -61,15 +80,15 @@ public class BackupFragment extends Fragment {
 		refreshAdapter();
 	}
 
-	protected void showProgressDialog() {
+	protected void showProgressDialog(String title,String message) {
 		// 创建ProgressDialog对象
 		m_pDialog = new ProgressDialog(getActivity());
 		// 设置进度条风格，风格为圆形，旋转的
 		m_pDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
 		// 设置ProgressDialog 标题
-		m_pDialog.setTitle("提示");
+		m_pDialog.setTitle(title);
 		// 设置ProgressDialog 提示信息
-		m_pDialog.setMessage("正在备份中...");
+		m_pDialog.setMessage(message);
 		// 设置ProgressDialog 的进度条是否不明确
 		m_pDialog.setIndeterminate(false);
 		// 设置ProgressDialog 是否可以按退回按键取消
@@ -112,9 +131,8 @@ public class BackupFragment extends Fragment {
 
 	private void refreshAdapter() {
 		final WflAdapter adapter = new WflAdapter(getActivity(),
-				mContactHandler.getContactInfo(getActivity()));
+				allConatcts);
 		listView.setAdapter(adapter);
-
 	}
 
 	private void backupContacts() {

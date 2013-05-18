@@ -44,9 +44,9 @@ public class WflAdapter extends BaseAdapter {
 
 	@Override
 	public int getItemViewType(int position) {
-//		if (mDataSource.get(position).isSelected) {
-//			return 0;
-//		}
+		// if (mDataSource.get(position).isSelected) {
+		// return 0;
+		// }
 		return 0;
 	}
 
@@ -76,11 +76,14 @@ public class WflAdapter extends BaseAdapter {
 			TextView tvDescribe1 = (TextView) holder[0];
 			tvDescribe1.setText(item.getName());
 		}
-		String phone = item.getPhones().get(0).number;
-		if (!TextUtils.isEmpty(phone)) {
-			TextView tvDescribe1 = (TextView) holder[1];
-			tvDescribe1.setVisibility(View.VISIBLE);
-			tvDescribe1.setText(phone);
+
+		if (item.isHasPhoneNumber()) {
+			if (item.getPhones().size() != 0) {
+				TextView tvDescribe1 = (TextView) holder[1];
+				tvDescribe1.setVisibility(View.VISIBLE);
+				tvDescribe1.setText(item.getPhones().get(0).number);
+			}
+
 		}
 
 		ImageView btn = (ImageView) holder[2];
