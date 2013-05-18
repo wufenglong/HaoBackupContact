@@ -2,13 +2,10 @@ package com.hao.contact.backup;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.List;
 
 import com.hao.contact.backup.fragment.AboutMeFragment;
 import com.hao.contact.backup.fragment.BackupFragment;
 import com.hao.contact.backup.fragment.RestoreFragment;
-import com.hao.contact.backup.model.ContactHandler;
-import com.hao.contact.backup.model.ContactInfo;
 import com.hao.contact.backup.model.FileNameSelector;
 
 import android.os.Bundle;
@@ -24,7 +21,6 @@ import android.view.animation.Animation;
 import android.view.animation.TranslateAnimation;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 /**
  * 首页用viewpage 显示两页1，备份，显示所有手机联系人，让用户勾选，有全选button
@@ -35,7 +31,6 @@ import android.widget.Toast;
  * */
 public class MainActivity extends FragmentActivity {
 	private ViewPager mPager;// 页卡内容
-	private List<View> listViews; // Tab页面列表
 	private ImageView cursor;// 动画图片
 	private TextView t1, t2, t3;// 页卡头标
 	private int offset = 0;// 动画图片偏移量

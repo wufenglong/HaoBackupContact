@@ -3,8 +3,6 @@ package com.hao.contact.backup;
 import java.util.List;
 
 import android.content.Context;
-import android.text.TextUtils;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,10 +17,8 @@ public class WflAdapter extends BaseAdapter {
 	protected static final int REFRESH = 0;
 	List<ContactInfo> mDataSource = null;
 	private LayoutInflater mInflater;
-	private Context mContext;
 
 	public WflAdapter(Context context, List<ContactInfo> dataSource) {
-		mContext = context;
 		this.mDataSource = dataSource;
 		mInflater = (LayoutInflater) context
 				.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
@@ -62,10 +58,9 @@ public class WflAdapter extends BaseAdapter {
 		View[] holder = null;
 		if (convertView == null) {
 			v = mInflater.inflate(R.layout.list_item, parent, false);
-			holder = new View[3];
+			holder = new View[2];
 			holder[0] = v.findViewById(R.id.describ1);
-			holder[1] = v.findViewById(R.id.describ2);
-			holder[2] = v.findViewById(R.id.selectBtn);
+			holder[1] = v.findViewById(R.id.selectBtn);
 			v.setTag(holder);
 		} else {
 			v = convertView;
@@ -78,16 +73,7 @@ public class WflAdapter extends BaseAdapter {
 			tvDescribe1.setText(item.getName());
 		}
 
-		if (item.isHasPhoneNumber()) {
-			if (item.getPhones().size() != 0) {
-				TextView tvDescribe1 = (TextView) holder[1];
-				tvDescribe1.setVisibility(View.VISIBLE);
-				tvDescribe1.setText(item.getPhones().get(0).number);
-			}
-
-		}
-
-		ImageView btn = (ImageView) holder[2];
+		ImageView btn = (ImageView) holder[1];
 		if (item.isSelected) {
 			btn.setImageResource(R.drawable.select_yes);
 		} else {

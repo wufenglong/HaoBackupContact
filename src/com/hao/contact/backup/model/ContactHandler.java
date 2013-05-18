@@ -20,7 +20,6 @@ import a_vcard.android.syncml.pim.VDataBuilder;
 import a_vcard.android.syncml.pim.VNode;
 import a_vcard.android.syncml.pim.vcard.ContactStruct;
 import a_vcard.android.syncml.pim.vcard.ContactStruct.ContactMethod;
-import a_vcard.android.syncml.pim.vcard.ContactStruct.OrganizationData;
 import a_vcard.android.syncml.pim.vcard.ContactStruct.PhoneData;
 import a_vcard.android.syncml.pim.vcard.VCardComposer;
 import a_vcard.android.syncml.pim.vcard.VCardException;

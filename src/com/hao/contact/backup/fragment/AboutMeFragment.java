@@ -7,7 +7,6 @@ import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 
 public class AboutMeFragment extends Fragment{
 	@Override
@@ -19,9 +18,7 @@ public class AboutMeFragment extends Fragment{
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
 			Bundle savedInstanceState) {
-		ImageView tv=new ImageView(getActivity());
-		tv.setImageResource(R.drawable.girl);
-		return tv;
+		return inflater.inflate(R.layout.aboutme_fragment_layout, null);
 	}
 
 	@Override
