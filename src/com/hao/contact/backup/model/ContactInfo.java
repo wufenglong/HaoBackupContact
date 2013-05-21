@@ -10,7 +10,7 @@ import java.util.List;
  * 
  */
 public class ContactInfo {
-	public boolean isSelected = true;
+	public boolean isSelected = false;
 	private int _id=0;
 	private boolean hasPhoneNumber=false;
 	/** MUST exist */

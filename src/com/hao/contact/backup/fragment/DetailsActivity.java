@@ -64,7 +64,6 @@ public class DetailsActivity extends Activity {
 		try {
 			allConatcts = mContactHandler.restoreContacts(path);
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		Button btnBackup = (Button) findViewById(R.id.backup_btn);
@@ -77,19 +76,20 @@ public class DetailsActivity extends Activity {
 				restoreContacts();
 			}
 		});
+		if (allConatcts.size() != 0) {
+			ListView list = (ListView) findViewById(R.id.backup_list);
+			final WflAdapter adapter = new WflAdapter(this, allConatcts);
+			list.setAdapter(adapter);
+			list.setOnItemClickListener(new OnItemClickListener() {
 
-		ListView list = (ListView) findViewById(R.id.backup_list);
-		final WflAdapter adapter = new WflAdapter(this, allConatcts);
-		list.setAdapter(adapter);
-		list.setOnItemClickListener(new OnItemClickListener() {
-
-			@Override
-			public void onItemClick(AdapterView<?> arg0, View arg1, int arg2,
-					long arg3) {
-				allConatcts.get(arg2).isSelected = !allConatcts.get(arg2).isSelected;
-				adapter.notifyDataSetChanged();
-			}
-		});
+				@Override
+				public void onItemClick(AdapterView<?> arg0, View arg1,
+						int arg2, long arg3) {
+					allConatcts.get(arg2).isSelected = !allConatcts.get(arg2).isSelected;
+					adapter.notifyDataSetChanged();
+				}
+			});
+		}
 	}
 
 	protected void showProgressDialog(String title, String message) {

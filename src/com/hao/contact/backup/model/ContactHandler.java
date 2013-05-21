@@ -14,13 +14,13 @@ import java.util.Date;
 import java.util.List;
 
 import com.hao.contact.backup.model.ContactInfo.OrganizationInfo;
-import com.hao.contact.backup.model.ContactInfo.PhoneInfo;
 
 import a_vcard.android.provider.Contacts;
 import a_vcard.android.syncml.pim.VDataBuilder;
 import a_vcard.android.syncml.pim.VNode;
 import a_vcard.android.syncml.pim.vcard.ContactStruct;
 import a_vcard.android.syncml.pim.vcard.ContactStruct.ContactMethod;
+import a_vcard.android.syncml.pim.vcard.ContactStruct.OrganizationData;
 import a_vcard.android.syncml.pim.vcard.ContactStruct.PhoneData;
 import a_vcard.android.syncml.pim.vcard.VCardComposer;
 import a_vcard.android.syncml.pim.vcard.VCardException;
@@ -40,7 +40,6 @@ import android.provider.ContactsContract.CommonDataKinds.StructuredName;
 import android.provider.ContactsContract.CommonDataKinds.StructuredPostal;
 import android.provider.ContactsContract.Data;
 import android.provider.ContactsContract.RawContacts;
-import android.text.TextUtils;
 import android.util.Log;
 
 /**
@@ -170,9 +169,10 @@ public class ContactHandler {
 				ContactInfo.PhoneInfo phoneInfo = new ContactInfo.PhoneInfo();
 				phoneInfo.type = type;
 				phoneInfo.number = phoneNumber;
-				phoneInfo.label=label;
-				Log.i("wu0wu", "type="+type);
-				Log.i("wu0wu", "number="+phoneNumber);
+				phoneInfo.label = label;
+				Log.i("wu0wu", "label=" + phoneInfo.label);
+				Log.i("wu0wu", "type=" + type);
+				Log.i("wu0wu", "number=" + phoneNumber);
 				phoneNumberList.add(phoneInfo);
 			}
 
@@ -303,8 +303,8 @@ public class ContactHandler {
 				contact.name = info.getName();
 				List<ContactInfo.PhoneInfo> numberList = info.getPhones();
 				for (ContactInfo.PhoneInfo phoneInfo : numberList) {
-					contact.addPhone(phoneInfo.type, phoneInfo.number, phoneInfo.label,
-							true);
+					contact.addPhone(phoneInfo.type, phoneInfo.number,
+							phoneInfo.label, true);
 				}
 				List<ContactInfo.EmailInfo> emailList = info.getEmail();
 				for (ContactInfo.EmailInfo emailInfo : emailList) {
@@ -322,11 +322,13 @@ public class ContactHandler {
 					Log.i(TAG, organization.type + ","
 							+ organization.companyName + ","
 							+ organization.jobDescription);
-					contact.company=organization.companyName;
+					contact.company = organization.companyName;
+					// contact.addOrganization(organization.type,
+					// organization.companyName,
+					// organization.jobDescription, false);
 				}
-
 				String vcardString = composer.createVCard(contact,
-						VCardComposer.VERSION_VCARD21_INT);
+						VCardComposer.VERSION_VCARD30_INT);
 				writer.write(vcardString);
 				writer.write("\n");
 				Log.i(TAG, "vcardString=" + vcardString);
@@ -418,14 +420,16 @@ public class ContactHandler {
 
 			List<ContactInfo.OrganizationInfo> organizationInfoList = new ArrayList<ContactInfo.OrganizationInfo>();
 			Log.i("wu0wu", "restore contactStruct.company="
-					+ contactStruct.company);
+					+ contactStruct.organizationList);
+			List<OrganizationData> vcfOrganizationList = contactStruct.organizationList;
 			// 获取备份文件中的联系人电话信息
-			if (!TextUtils.isEmpty(contactStruct.company)) {
-
-				OrganizationInfo organizationInfo = new ContactInfo.OrganizationInfo();
-				organizationInfo.companyName = contactStruct.company;
-				organizationInfoList.add(organizationInfo);
-
+			if (null != vcfOrganizationList) {
+				for (OrganizationData organizationData : vcfOrganizationList) {
+					OrganizationInfo organizationInfo = new ContactInfo.OrganizationInfo();
+					organizationInfo.companyName = organizationData.companyName;
+					organizationInfo.type=organizationData.type;
+					organizationInfoList.add(organizationInfo);
+				}
 			}
 			ContactInfo info = new ContactInfo(contactStruct.name);
 			if (emailInfoList.size() != 0) {
